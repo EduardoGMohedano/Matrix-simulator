@@ -25,6 +25,7 @@ For a C++ project simply rename the file to .cpp and re-run the build script
 */
 
 #include "raylib.h"
+#include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -77,10 +78,7 @@ typedef struct {
     int y;
 } Point;
 
-typedef struct{
-	uint8_t row_state;
-	uint8_t col_state;
-}matrix_state;
+int milliseconds = 0;
 
 Point** generate_Matrix_pos(int start_pointX, int start_pointY, int space, int matrix_size){
 
@@ -142,42 +140,39 @@ void DisplayMsgMatrix(Point** my_matrix, int matrix_size, int radius, char* mess
 void ShiftMsgMatrix(Point** my_matrix, int matrix_size, int radius, char* message, int msg_size, int space){
 
 		uint16_t letter_shifted = 0;
-		uint16_t shift_size = msg_size*matrix_size + 2*matrix_size;
-		//uint16_t shift_size = msg_size*matrix_size + 2*matrix_size + (msg_size-1)*space;
+		uint16_t shift_size = msg_size*matrix_size + matrix_size;
 		int index4letter = 0;
 		int tmp = 0;
 
-		// for(int letter = 0; letter < msg_size; letter++){
-			for(int index_shift = 0; index_shift < shift_size; index_shift++){
-				index4letter = index_shift/matrix_size;
-				clearMatrixScreen(my_matrix, matrix_size, radius);
-				tmp = index_shift%8;//1-16
-				printf("ShiftIndex=%d Index4letter=%d tmp=%d\n", index_shift, index4letter,tmp);
+  		struct timespec ts;
+    	ts.tv_sec = 0;
+    	ts.tv_nsec = milliseconds * 1000 * 1000;	
 
-				for(int row_index = 0; row_index < matrix_size; row_index++){
-					//condition from right to center
-					if( index_shift <8 ){
-						// letter_shifted = (uint16_t)alphabet[ message[index4letter] - 97 ][row_index] >> (8-index_shift);
-						letter_shifted = (uint16_t)alphabet[ message[index4letter] - 97 ][row_index] << (tmp);
-					}
-					else{
-						// if(tmp == 0)
-							// letter_shifted = (uint16_t)(alphabet[ message[index4letter-1] - 97 ][row_index]) << tmp || (uint16_t)alphabet[ message[index4letter] - 97 ][row_index];
-						letter_shifted = (uint16_t)alphabet[ message[index4letter-1] - 97 ][row_index] << (tmp) || (uint16_t)alphabet[ message[index4letter] - 97 ][row_index];
-					}
+		for(int index_shift = 0; index_shift < shift_size; index_shift++){
+			index4letter = index_shift/matrix_size;
+			clearMatrixScreen(my_matrix, matrix_size, radius);
+			tmp = index_shift%8;
+			// printf("ShiftIndex=%d Index4letter=%d tmp=%d\n", index_shift, index4letter,tmp);
 
-					BeginDrawing();
-					for(int col = 0; col < matrix_size; col++){
-						// if( (alphabet[ message[letter] - 97 ][row_index] >> (7-col) & 1) == 1  )
-						if( ( letter_shifted >> (15-col) & 1) == 1  )
-							DrawCircle(my_matrix[row_index][col].x , my_matrix[row_index][col].y, radius, RED );
-					}
-					EndDrawing();
+			for(int row_index = 0; row_index < matrix_size; row_index++){
+				
+				//preparing a letter of 16 bits long for row
+				if( index4letter < 1 )
+					letter_shifted = (uint16_t)(alphabet[ message[index4letter] - 97 ][row_index]);
+				else
+					letter_shifted = (uint16_t)(alphabet[ message[index4letter-1] - 97 ][row_index]) << 8 | (uint16_t)alphabet[ message[index4letter] - 97 ][row_index];
+				
+				letter_shifted = letter_shifted >> (8-tmp);
+
+				BeginDrawing();
+				for(int col = 0; col < matrix_size; col++){
+					if( ( letter_shifted >> (7-col) & 1) == 1  )
+						DrawCircle(my_matrix[row_index][col].x , my_matrix[row_index][col].y, radius, RED );
 				}
-				sleep(1);
+				EndDrawing();
 			}
-			sleep(1);
-		// }
+			nanosleep(&ts,NULL);
+		}
 }
 
 void ShiftMsgMatrixByletter(Point** my_matrix, int matrix_size, int radius, char* message, int msg_size){
@@ -211,51 +206,14 @@ void ShiftMsgMatrixByletter(Point** my_matrix, int matrix_size, int radius, char
 
 int main(int argc, char** argv)
 {
-	// // Tell the window to use vysnc and work on high DPI displays
-	// SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
-
-	// // Create the window and OpenGL context
-	// InitWindow(1280, 800, "Hello Raylib");
-
-	// // Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
-	// SearchAndSetResourceDir("resources");
-
-	// // Load a texture from the resources directory
-	// Texture wabbit = LoadTexture("wabbit_alpha.png");
-	
-	// // game loop
-	// while (!WindowShouldClose())		// run the loop untill the user presses ESCAPE or presses the Close button on the window
-	// {
-	// 	// drawing
-	// 	BeginDrawing();
-
-	// 	// Setup the backbuffer for drawing (clear color and depth buffers)
-	// 	ClearBackground(BLACK);
-
-	// 	// draw some text using the default font
-	// 	DrawText("Hello Raylib", 200,200,20,WHITE);
-
-	// 	// draw our texture to the screen
-	// 	DrawTexture(wabbit, 400, 200, WHITE);
-		
-	// 	// end the frame and get ready for the next one  (display frame, poll input, etc...)
-	// 	EndDrawing();
-	// }
-
-	// // cleanup
-	// // unload our texture so it can be cleaned up
-	// UnloadTexture(wabbit);
-
-	// // destory the window and cleanup the OpenGL context
-	// CloseWindow();
-
 	char* my_message = *(argv+1);
 	int my_msg_size = 0;
+	milliseconds = atoi(*(argv+2));
 
 	while( *(my_message+my_msg_size) != '\0' )
 		my_msg_size++;
 
-	printf("The input message is %s and its size is %d", my_message, my_msg_size);
+	printf("The input message is %s and its size is %d and sleep time is %d\n", my_message, my_msg_size, milliseconds);
 	
 	const int screenWidth = 800;
     const int screenHeight = 450;
@@ -266,11 +224,6 @@ int main(int argc, char** argv)
 	const int start_pointY = 30;
 	const int space = 50;
 	const float radius = 20.0;
-
-  	struct timespec ts;
-	int milliseconds = 900;
-    ts.tv_sec = 0;
-    ts.tv_nsec = milliseconds * 1000 * 1000;	
 
     InitWindow(screenWidth, screenHeight, "Basic window");
     SetTargetFPS(60);
