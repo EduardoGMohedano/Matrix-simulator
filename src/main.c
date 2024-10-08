@@ -30,8 +30,22 @@ For a C++ project simply rename the file to .cpp and re-run the build script
 #include <stdlib.h>
 #include <stdint.h>
 #include <time.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
 
-#include "resource_dir.h"	// utility header for SearchAndSetResourceDir
+#define PORT 8080
+#define BUFFER_SIZE 1024
+
+// Prepare the HTTP 200 OK response
+const char *http_response = "HTTP/1.1 200 OK\r\n"\
+                            "Content-Type: text/plain\r\n"\
+                            "Content-Length: 13";
+
+void error(const char *msg) {
+    perror(msg);
+    exit(EXIT_FAILURE);
+}
+
 
 
 const uint8_t alphabet[][8] = {\
@@ -220,21 +234,13 @@ int main(int argc, char** argv)
 	const int matrix_size = 8;
 	const int row_size = 8, col_size = 8;
 
-	const int start_pointX = 30;
-	const int start_pointY = 30;
 	const int space = 50;
 	const float radius = 20.0;
 
     InitWindow(screenWidth, screenHeight, "Basic window");
-    SetTargetFPS(60);
-
+    SetTargetFPS(120);
 	Point** my_matrix = generate_Matrix_pos( (screenWidth - (8*space - 2*radius))/2,  (screenHeight - (8*space - 2*radius))/2, space, 8);
-	// matrix_state my_matrix_sta;
-	// my_matrix_sta.row_state = 0x00; 
-	// my_matrix_sta.col_state = 0xFF;
 	
-
-
     while(!WindowShouldClose()){
 
 		//DisplayMsgMatrix(my_matrix, matrix_size, radius, my_message, my_msg_size);
@@ -243,7 +249,7 @@ int main(int argc, char** argv)
 		
     }
 
-	freeMatrix(my_matrix,8);
+	freeMatrix(my_matrix, matrix_size);
     CloseWindow();
 
 
